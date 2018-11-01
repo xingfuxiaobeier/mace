@@ -309,7 +309,7 @@ def bazel_build(target,
         bazel_args += ("--config", "optimization")
     if extra_args:
         bazel_args += (extra_args, )
-        print bazel_args
+        print(bazel_args)
     sh.bazel(
         _fg=True,
         *bazel_args)
@@ -388,7 +388,7 @@ def merge_opencl_binaries(binaries_dirs,
         if not os.path.exists(binary_path):
             continue
 
-        print 'generate opencl code from', binary_path
+        print( 'generate opencl code from', binary_path)
         with open(binary_path, "rb") as f:
             binary_array = np.fromfile(f, dtype=np.uint8)
 
@@ -444,7 +444,7 @@ def merge_opencl_parameters(binaries_dirs,
         if not os.path.exists(binary_path):
             continue
 
-        print 'generate opencl parameter from', binary_path
+        print( 'generate opencl parameter from', binary_path)
         with open(binary_path, "rb") as f:
             binary_array = np.fromfile(f, dtype=np.uint8)
 
@@ -664,7 +664,7 @@ def tuning_run(abi,
             stdout=subprocess.PIPE)
         out, err = p.communicate()
         stdout = err + out
-        print stdout
+        print( stdout)
         print("Running finished!\n")
     else:
         sh.adb("-s", serialno, "shell", "mkdir", "-p", phone_data_dir)

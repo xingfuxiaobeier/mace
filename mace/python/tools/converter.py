@@ -90,10 +90,10 @@ def main(unused_args):
             sys.exit(-1)
 
     if FLAGS.platform not in ['tensorflow', 'caffe']:
-        print ("platform %s is not supported." % FLAGS.platform)
+        print("platform %s is not supported." % FLAGS.platform)
         sys.exit(-1)
     if FLAGS.runtime not in ['cpu', 'gpu', 'dsp', 'cpu+gpu']:
-        print ("runtime %s is not supported." % FLAGS.runtime)
+        print("runtime %s is not supported." % FLAGS.runtime)
         sys.exit(-1)
 
     if FLAGS.graph_optimize_options:
@@ -152,9 +152,9 @@ def main(unused_args):
             mace_gpu_transformer = transformer.Transformer(
                 option, output_graph_def)
             output_graph_def = mace_gpu_transformer.run()
-            print "start optimize gpu memory."
+            print( "start optimize gpu memory.")
             memory_optimizer.optimize_gpu_memory(output_graph_def)
-            print "GPU memory optimization done."
+            print( "GPU memory optimization done.")
 
             option.device = cvt.DeviceType.CPU.value
             option.data_type = parse_data_type(
@@ -163,11 +163,11 @@ def main(unused_args):
             mace_cpu_transformer = transformer.Transformer(
                 option, cpu_graph_def)
             cpu_graph_def = mace_cpu_transformer.run()
-            print "start optimize cpu memory."
+            print( "start optimize cpu memory.")
             memory_optimizer.optimize_cpu_memory(cpu_graph_def)
-            print "CPU memory optimization done."
+            print( "CPU memory optimization done.")
 
-            print "Merge cpu and gpu ops together"
+            print( "Merge cpu and gpu ops together")
             output_graph_def.op.extend(cpu_graph_def.op)
             output_graph_def.mem_arena.mem_block.extend(
                 cpu_graph_def.mem_arena.mem_block)
@@ -178,7 +178,7 @@ def main(unused_args):
             for arg in cpu_graph_def.arg:
                 if arg.name not in output_graph_arg_names:
                     output_graph_def.arg.extend(arg)
-            print "Merge done"
+            print( "Merge done")
         else:
             option.device = device_type_map[FLAGS.runtime]
             option.data_type = parse_data_type(
@@ -187,7 +187,7 @@ def main(unused_args):
                 option, output_graph_def)
             output_graph_def = mace_transformer.run()
 
-            print "start optimize memory."
+            print( "start optimize memory.")
             if FLAGS.runtime == 'gpu':
                 memory_optimizer.optimize_gpu_memory(output_graph_def)
             elif FLAGS.runtime == 'cpu':
@@ -195,7 +195,7 @@ def main(unused_args):
             else:
                 mace_check(False, "runtime only support [gpu|cpu|dsp]")
 
-            print "Memory optimization done."
+            print( "Memory optimization done.")
 
     model_saver.save_model(
         output_graph_def, model_checksum, weight_checksum,

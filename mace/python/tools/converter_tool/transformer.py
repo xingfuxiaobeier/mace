@@ -629,7 +629,7 @@ class Transformer(base_converter.ConverterInterface):
                         and len(self._consumers.get(conv_op.output[0], [])) == 1:  # noqa
                     b2s_op = self._consumers.get(conv_op.output[0])[0]
                     if b2s_op.type == MaceOp.BatchToSpaceND.name:
-                        print "Flatten atrous convolution"
+                        print( "Flatten atrous convolution")
                         # Add args.
                         padding_arg_values = ConverterUtil.get_arg(
                             op,
@@ -1156,7 +1156,7 @@ class Transformer(base_converter.ConverterInterface):
                                weight.dims[0] != op.output_shape[0].dims[1]:
                                 is_fc = False
                     if is_fc:
-                        print 'convert reshape and matmul to fc'
+                        print( 'convert reshape and matmul to fc')
                         self.safe_remove_node(op, input_op,
                                               remove_input_tensor=True)
                         for matmul_op in consumers:
@@ -1177,7 +1177,7 @@ class Transformer(base_converter.ConverterInterface):
                         producer.type != MaceOp.Reshape.name and \
                         len(producer.output_shape[0].dims) == 2 and \
                         weight.dims[0] == producer.output_shape[0].dims[1]:
-                    print 'convert matmul to fc'
+                    print( 'convert matmul to fc')
                     op.type = MaceOp.FullyConnected.name
                     weight_data = np.array(weight.float_data).reshape(
                         weight.dims)

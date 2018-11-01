@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "src/main/cpp/image_classify.h"
+#include "src/main/cpp/semantic_segment.h"
 
 #include <android/log.h>
 #include <jni.h>
@@ -27,7 +27,7 @@
 
 #include "src/main/cpp/include/mace/public/mace.h"
 #include "src/main/cpp/include/mace/public/mace_runtime.h"
-#include "src/main/cpp/include/mace/public/mace_engine_factory.h"
+#include "src/main/cpp/include/mace/public/mace_deeplabv3p_engine_factory.h"
 
 namespace {
 
@@ -44,10 +44,8 @@ struct MaceContext {
   std::string model_name;
   mace::DeviceType device_type = mace::DeviceType::CPU;
   std::map<std::string, ModelInfo> model_infos = {
-      {"mobilenet_v1", {"input", "MobilenetV1/Predictions/Reshape_1",
-                            {1, 224, 224, 3}, {1, 1001}}},
-      {"mobilenet_v2", {"input", "MobilenetV2/Predictions/Reshape_1",
-                            {1, 224, 224, 3}, {1, 1001}}}
+      {"deeplab_v3_plus_mobilenet_v2", {"sub_7", "ResizeBilinear_2",
+                            {1, 513, 513, 3}, {1, 65, 65, 21}}}
   };
 };
 
@@ -66,13 +64,13 @@ mace::DeviceType ParseDeviceType(const std::string &device) {
 MaceContext& GetMaceContext() {
   // stay for the app's life time, only initialize once
   static auto *mace_context = new MaceContext;
-  __android_log_print(ANDROID_LOG_INFO, "classifica", " mace context ptr : %p", mace_context);
+  __android_log_print(ANDROID_LOG_INFO, "semantic segment : ", "mace context ptr : %p", mace_context);
   return *mace_context;
 }
 
 }  // namespace
 
-JNIEXPORT jint JNICALL Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetSetAttrs(
+JNIEXPORT jint JNICALL Java_com_xiaomi_mace_JniMaceUtils_maceDeepLibnetSetAttrs(
     JNIEnv *env, jclass thisObj, jint omp_num_threads, jint cpu_affinity_policy,
     jint gpu_perf_hint, jint gpu_priority_hint, jstring kernel_path) {
   MaceContext &mace_context = GetMaceContext();
@@ -84,7 +82,7 @@ JNIEXPORT jint JNICALL Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetSetAttrs(
       static_cast<mace::CPUAffinityPolicy>(cpu_affinity_policy));
 
   __android_log_print(ANDROID_LOG_ERROR,
-                      "image_classify attrs",
+                      "image_segment attrs",
                       "openmp result: %d, threads: %d, cpu: %d",
                       status, omp_num_threads, cpu_affinity_policy);
 
@@ -94,7 +92,7 @@ JNIEXPORT jint JNICALL Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetSetAttrs(
       static_cast<mace::GPUPriorityHint>(gpu_priority_hint));
 
   __android_log_print(ANDROID_LOG_ERROR,
-                      "image_classify attrs",
+                      "image_segment attrs",
                       "gpu perf: %d, priority: %d",
                       gpu_perf_hint, gpu_priority_hint);
 
@@ -111,7 +109,7 @@ JNIEXPORT jint JNICALL Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetSetAttrs(
 }
 
 JNIEXPORT jint JNICALL
-Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetCreateEngine(
+Java_com_xiaomi_mace_JniMaceUtils_maceDeepLibnetCreateEngine(
     JNIEnv *env, jclass thisObj, jstring model_name_str, jstring device) {
   MaceContext &mace_context = GetMaceContext();
   //  parse model name
@@ -125,7 +123,7 @@ Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetCreateEngine(
       mace_context.model_infos.find(mace_context.model_name);
   if (model_info_iter == mace_context.model_infos.end()) {
     __android_log_print(ANDROID_LOG_ERROR,
-                        "image_classify",
+                        "image_segment",
                         "Invalid model name: %s",
                         mace_context.model_name.c_str());
     return JNI_ERR;
@@ -140,12 +138,12 @@ Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetCreateEngine(
   env->ReleaseStringUTFChars(device, device_ptr);
 
   __android_log_print(ANDROID_LOG_ERROR,
-                      "image_classify attrs",
+                      "image_segment attrs",
                       "device: %d",
                       mace_context.device_type);
 
   mace::MaceStatus create_engine_status =
-      CreateMaceEngineFromCode(mace_context.model_name,
+      CreateMaceEngineFromCode2(mace_context.model_name,
                                std::string(),
                                input_names,
                                output_names,
@@ -153,7 +151,7 @@ Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetCreateEngine(
                                &mace_context.engine);
 
   __android_log_print(ANDROID_LOG_ERROR,
-                      "image_classify attrs",
+                      "image_segment attrs",
                       "create result: %d",
                       create_engine_status);
 
@@ -162,7 +160,7 @@ Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetCreateEngine(
 }
 
 JNIEXPORT jfloatArray JNICALL
-Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetClassify(
+Java_com_xiaomi_mace_JniMaceUtils_maceDeepLibnetSegment(
     JNIEnv *env, jclass thisObj, jfloatArray input_data) {
   MaceContext &mace_context = GetMaceContext();
   //  prepare input and output
@@ -170,7 +168,7 @@ Java_com_xiaomi_mace_JniMaceUtils_maceMobilenetClassify(
       mace_context.model_infos.find(mace_context.model_name);
   if (model_info_iter == mace_context.model_infos.end()) {
     __android_log_print(ANDROID_LOG_ERROR,
-                        "image_classify",
+                        "image_segment",
                         "Invalid model name: %s",
                         mace_context.model_name.c_str());
     return nullptr;

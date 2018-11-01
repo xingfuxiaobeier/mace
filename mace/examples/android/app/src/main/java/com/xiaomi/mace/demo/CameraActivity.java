@@ -17,18 +17,20 @@ package com.xiaomi.mace.demo;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.NonNull;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-
-import com.xiaomi.mace.demo.camera.CameraEngage;
 import com.xiaomi.mace.demo.camera.CameraTextureView;
 import com.xiaomi.mace.demo.camera.ContextMenuDialog;
-
+import com.xiaomi.mace.demo.camera.Engage;
+import com.xiaomi.mace.demo.camera.GL.CameraGLSurfaceView;
 import com.xiaomi.mace.demo.camera.MessageEvent;
 import com.xiaomi.mace.demo.result.InitData;
 
@@ -41,13 +43,17 @@ import java.util.List;
 
 public class CameraActivity extends Activity implements View.OnClickListener {
 
-    CameraEngage mCameraEngage;
+    private static final String TAG = "CameraActivity";
+    int currentViewMode = 1;
+    Engage mCameraEngage;
     ImageView mPictureResult;
     Button mSelectMode;
     Button mSelectPhoneType;
     CameraTextureView mCameraTextureView;
+    CameraGLSurfaceView cameraGLSurfaceView;
     private TextView mResultView;
     private InitData initData = new InitData();
+    private Handler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,8 +62,44 @@ public class CameraActivity extends Activity implements View.OnClickListener {
         setContentView(R.layout.activity_camera);
         mPictureResult = findViewById(R.id.iv_picture);
         mResultView = findViewById(R.id.tv_show_result);
-        mCameraTextureView = findViewById(R.id.camera_texture);
-        mCameraEngage = CameraFactory.genCameEngage(mCameraTextureView);
+
+        if (currentViewMode == ViewModeEnum.TEXTURE_VIEW.getValue()) {
+            mCameraTextureView = findViewById(R.id.camera_texture);
+        } else if (currentViewMode == ViewModeEnum.GLSURFACE_VIEW.getValue()) {
+            cameraGLSurfaceView = findViewById(R.id.camera_texture);
+        }
+
+        if (currentViewMode == ViewModeEnum.TEXTURE_VIEW.getValue()) {
+            mCameraEngage = CameraFactory.genCameEngage(mCameraTextureView, ViewModeEnum.TEXTURE_VIEW.getValue());
+        } else {
+
+//            HandlerThread thread = new HandlerThread("test");
+//            Looper looper = thread.getLooper();
+//            looper.prepare();
+
+            handler = new Handler(getMainLooper()) {
+                @Override
+                public void handleMessage(Message msg) {
+                    switch (msg.what) {
+                        case 0:
+                            cameraGLSurfaceView.setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    mCameraEngage.autoFocus();
+                                }
+                            });
+                            break;
+                        case 1:
+                            mCameraEngage = (Engage) msg.obj;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            };
+            cameraGLSurfaceView.setHandler(handler);
+            Log.i(TAG, "GLSurfaceView set main thread handler");
+        }
 
         mSelectMode = findViewById(R.id.tv_select_mode);
         mSelectMode.setOnClickListener(this);
@@ -89,14 +131,18 @@ public class CameraActivity extends Activity implements View.OnClickListener {
     @Override
     protected void onResume() {
         super.onResume();
-        mCameraEngage.onResume();
+        if (mCameraEngage != null) {
+            mCameraEngage.onResume();
+        }
     }
 
 
     @Override
     protected void onPause() {
         super.onPause();
-        mCameraEngage.onPause();
+        if (mCameraEngage != null) {
+            mCameraEngage.onPause();
+        }
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -148,7 +194,9 @@ public class CameraActivity extends Activity implements View.OnClickListener {
             boolean allGrant = true;
             for (int result : grantResults) {
                 if (result != PackageManager.PERMISSION_GRANTED) {
-                    mCameraEngage.onResume();
+                    if (mCameraEngage != null) {
+                        mCameraEngage.onResume();
+                    }
                     allGrant = false;
                     break;
                 }
@@ -166,7 +214,13 @@ public class CameraActivity extends Activity implements View.OnClickListener {
             public void onCLickItem(String content) {
                 mSelectPhoneType.setText(content);
                 initData.setDevice(content);
-                AppModel.instance.maceMobilenetCreateEngine(initData);
+                int model = ModelType.getValueByName(initData.getModel());
+                Log.i(TAG, "change phone type to : " + content + ", current model : " + model);
+                if (model == ModelType.MOBILE_NET_V1.getValue() || model == ModelType.MOBILE_NET_V2.getValue() )  {
+                    AppModel.instance.maceMobilenetCreateEngine(initData);
+                } else if (model == ModelType.SEMANTIC_SEGMENT_NET.getValue()) {
+                    AppModel.instance.maceDeepLabv3CreateEngine(initData);
+                }
             }
         });
     }
@@ -178,8 +232,24 @@ public class CameraActivity extends Activity implements View.OnClickListener {
             public void onCLickItem(String content) {
                 mSelectMode.setText(content);
                 initData.setModel(content);
-                AppModel.instance.maceMobilenetCreateEngine(initData);
+                int model = ModelType.getValueByName(content);
+                if (mCameraEngage != null) {
+                    Log.i(TAG, "change model to : " + model + ", current phone type : " + initData.getDevice());
+                    mCameraEngage.setModel(model);
+                } else {
+                    Log.e(TAG, "change model to : " + model + ", current phone type : " + initData.getDevice() + " failed !!!");
+
+                }
+                if (model == ModelType.MOBILE_NET_V1.getValue() || model == ModelType.MOBILE_NET_V2.getValue() )  {
+                    AppModel.instance.maceMobilenetCreateEngine(initData);
+                } else if (model == ModelType.SEMANTIC_SEGMENT_NET.getValue()) {
+                    AppModel.instance.maceDeepLabv3CreateEngine(initData);
+                }
             }
         });
+    }
+
+    public Handler getHandler() {
+        return handler;
     }
 }

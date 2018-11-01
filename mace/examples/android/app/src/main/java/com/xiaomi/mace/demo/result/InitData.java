@@ -21,7 +21,7 @@ import java.io.File;
 public class InitData {
 
     public static final String[] DEVICES = new String[]{"CPU", "GPU"};
-    public static final String[] MODELS = new String[]{"mobilenet_v1", "mobilenet_v2"};
+    public static final String[] MODELS = new String[]{"mobilenet_v1", "mobilenet_v2", "deeplab_v3_plus_mobilenet_v2"};
 
     private String model;
     private String device = "";

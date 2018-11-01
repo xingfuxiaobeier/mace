@@ -17,4 +17,8 @@ package com.xiaomi.mace.demo;
 public class Constant {
 
     public static final int CAMERA_PERMISSION_REQ = 1;
+
+
 }
+
+;

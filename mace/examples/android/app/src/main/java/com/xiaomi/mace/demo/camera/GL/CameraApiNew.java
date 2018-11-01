@@ -12,25 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.xiaomi.mace.demo.camera;
+package com.xiaomi.mace.demo.camera.GL;
 
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class CameraApiLessM extends CameraEngage implements Camera.AutoFocusCallback {
+public class CameraApiNew extends CameraEngage implements Camera.AutoFocusCallback {
 
     private Camera mCamera;
+    private Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+    private String[] supportSize = new String[]{
+            "1280x720", "640x480", "720x720"};
+    private final String dstResolution = "640x480";
 
-    public CameraApiLessM(CameraTextureView textureView) {
-        super(textureView);
+    public CameraApiNew(CameraGLSurfaceView glSurfaceView, SurfaceTexture texture) {
+        super(glSurfaceView, texture);
     }
 
     @Override
     public void openCamera(int width, int height) {
-        Log.i("dhb", "open camera step 3");
+        Log.i("dhb", "test step 3");
         if (!checkCameraPermission()) {
             return;
         }
@@ -42,6 +48,7 @@ public class CameraApiLessM extends CameraEngage implements Camera.AutoFocusCall
         }
 
         mCamera = Camera.open(Integer.parseInt(cameraId));
+        Camera.getCameraInfo(Integer.parseInt(cameraId), cameraInfo);
         setOutputConfig(width, height);
         startPreview();
     }
@@ -88,11 +95,17 @@ public class CameraApiLessM extends CameraEngage implements Camera.AutoFocusCall
 
     @Override
     public boolean isFlipHorizontal() {
+        if(cameraInfo != null) {
+            return cameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT ? true : false;
+        }
         return false;
     }
 
     @Override
     public int getOrientation() {
+        if (cameraInfo != null) {
+            return cameraInfo.orientation;
+        }
         return 0;
     }
 
@@ -111,17 +124,55 @@ public class CameraApiLessM extends CameraEngage implements Camera.AutoFocusCall
         }
     }
 
+    private void setOutputConfigOrigin(int width, int height) {
+        Camera.Parameters parameters = mCamera.getParameters();
+        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+        List<String> supportSizes = getSupportedPreviewSize(supportSize);
+        String curResolution = null;
+        if (supportSizes.contains(dstResolution)) {
+
+        } else {
+            //dedault
+            if (supportSizes.size() > 0) {
+                curResolution = supportSizes.get(0);
+            } else {
+                //TODO:
+            }
+        }
+    }
+
+    private ArrayList<String> getSupportedPreviewSize(String[] previewSizes)
+    {
+        ArrayList<String> result = new ArrayList<String>();
+        if(mCamera != null)
+        {
+            List<Camera.Size> sizes = mCamera.getParameters().getSupportedPreviewSizes();
+            for(String candidate : previewSizes)
+            {
+                int index = candidate.indexOf('x');
+                if (index == -1) continue;
+                int width = Integer.parseInt(candidate.substring(0, index));
+                int height = Integer.parseInt(candidate.substring(index + 1));
+                for(Camera.Size s : sizes){
+                    if((s.width == width) && (s.height == height)){
+                        result.add(candidate);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+
     private void setOutputConfig(int width, int height) {
         Camera.Parameters parameters = mCamera.getParameters();
         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
         Camera.Size size = getOptimalSize(parameters.getSupportedPreviewSizes(), width, height);
-        setmPreviewWidth(size.width);
-        setmPreviewHeight(size.height);
+        setmPreviewWidth(size.height);
+        setmPreviewHeight(size.width);
         parameters.setPreviewSize(size.width, size.height);
         parameters.setPictureSize(size.width, size.height);
         mCamera.setParameters(parameters);
-        CameraTextureView mTextureView = (CameraTextureView) getView();
-        mTextureView.setRatio(size.height, size.width);
     }
 
     private Camera.Size getOptimalSize(List<Camera.Size> sizes, int w, int h) {
@@ -155,4 +206,6 @@ public class CameraApiLessM extends CameraEngage implements Camera.AutoFocusCall
 
         return optimalSize;
     }
+
+
 }

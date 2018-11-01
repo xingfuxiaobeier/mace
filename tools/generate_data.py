@@ -32,7 +32,7 @@ def generate_data(name, shape, input_file, tensor_range):
     data = np.random.random(shape) * (tensor_range[1] - tensor_range[0]) \
         + tensor_range[0]
     input_file_name = common.formatted_file_name(input_file, name)
-    print 'Generate input file: ', input_file_name
+    print( 'Generate input file: ', input_file_name)
     data.astype(np.float32).tofile(input_file_name)
 
 
@@ -51,7 +51,7 @@ def generate_input_data(input_file, input_node, input_shape, input_ranges):
         else:
             input_range = [-1, 1]
         generate_data(input_names[i], shape, input_file, input_range)
-    print "Generate input file done."
+    print( "Generate input file done.")
 
 
 def parse_args():

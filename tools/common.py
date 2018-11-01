@@ -33,24 +33,24 @@ class CMDColors:
 class MaceLogger:
     @staticmethod
     def header(message):
-        print CMDColors.PURPLE + message + CMDColors.ENDC
+        print( CMDColors.PURPLE + message + CMDColors.ENDC)
 
     @staticmethod
     def summary(message):
-        print CMDColors.GREEN + message + CMDColors.ENDC
+        print( CMDColors.GREEN + message + CMDColors.ENDC)
 
     @staticmethod
     def info(message):
-        print message
+        print( message)
 
     @staticmethod
     def warning(message):
-        print CMDColors.YELLOW + 'WARNING:' + message + CMDColors.ENDC
+        print( CMDColors.YELLOW + 'WARNING:' + message + CMDColors.ENDC)
 
     @staticmethod
     def error(module, message):
-        print CMDColors.RED + 'ERROR: [' + module + '] '\
-              + message + CMDColors.ENDC
+        print( CMDColors.RED + 'ERROR: [' + module + '] ' \
+              + message + CMDColors.ENDC)
         exit(1)
 
 

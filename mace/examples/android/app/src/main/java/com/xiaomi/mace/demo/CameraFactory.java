@@ -14,21 +14,34 @@
 
 package com.xiaomi.mace.demo;
 
+import android.graphics.SurfaceTexture;
 import android.os.Build;
+import android.view.View;
 
 import com.xiaomi.mace.demo.camera.CameraApiLessM;
-import com.xiaomi.mace.demo.camera.CameraEngage;
 import com.xiaomi.mace.demo.camera.CameraTextureView;
+import com.xiaomi.mace.demo.camera.Engage;
+import com.xiaomi.mace.demo.camera.GL.CameraApiNew;
+import com.xiaomi.mace.demo.camera.GL.CameraGLSurfaceView;
 
 public class CameraFactory {
 
-    public static CameraEngage genCameEngage(CameraTextureView textureView) {
-        CameraEngage cameraEngage;
+    public static Engage genCameEngage(View view, int mode) {
+        Engage cameraEngage = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//            cameraEngage = new CameraApiMoreM(textureView);
-            cameraEngage = new CameraApiLessM(textureView);
+            if (mode == ViewModeEnum.TEXTURE_VIEW.getValue()) {
+                cameraEngage = new CameraApiLessM((CameraTextureView) view);
+            } else if (mode == ViewModeEnum.GLSURFACE_VIEW.getValue()) {
+                SurfaceTexture texture = ((CameraGLSurfaceView)view).getSurfaceTexture();
+                cameraEngage = new CameraApiNew((CameraGLSurfaceView) view, texture);
+            }
         } else {
-            cameraEngage = new CameraApiLessM(textureView);
+            if (mode == ViewModeEnum.TEXTURE_VIEW.getValue()) {
+                cameraEngage = new CameraApiLessM((CameraTextureView) view);
+            } else if (mode == ViewModeEnum.GLSURFACE_VIEW.getValue()) {
+                SurfaceTexture texture = ((CameraGLSurfaceView)view).getSurfaceTexture();
+                cameraEngage = new CameraApiNew((CameraGLSurfaceView) view, texture);
+            }
         }
         return cameraEngage;
     }

@@ -19,6 +19,9 @@ public class ResultData {
     public float probability;
     public long costTime;  // ms
 
+    public ResultData() {
+    }
+
     public ResultData(String name, float probability) {
         this.name = name;
         this.probability = probability;

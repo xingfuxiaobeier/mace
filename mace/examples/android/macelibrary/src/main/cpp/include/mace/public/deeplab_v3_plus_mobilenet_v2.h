@@ -14,24 +14,30 @@
 
 // This is a generated file. DO NOT EDIT!
 
-#include <map>
+#ifndef MACE_CODEGEN_MODELS_DEEPLAB_V3_PLUS_MOBILENET_V2_DEEPLAB_V3_PLUS_MOBILENET_V2_H_
+#define MACE_CODEGEN_MODELS_DEEPLAB_V3_PLUS_MOBILENET_V2_DEEPLAB_V3_PLUS_MOBILENET_V2_H_
+
 #include <string>
-#include <vector>
+
+#include "mace/public/mace.h"
 
 namespace mace {
+namespace deeplab_v3_plus_mobilenet_v2 {
 
-extern const std::map<std::string, std::vector<{{data_type}}>> {{variable_name}} =
-{
-  {% for key, value in maps.items() %}
-  {
-    "{{key}}",
-    {
-      {%- for ele in value -%}
-      {{ele}},
-      {%- endfor -%}
-    }
-  },  // {{key}}
-{% endfor %}
-};
 
+const unsigned char *LoadModelData(const std::string &model_data_file);
+
+const std::shared_ptr<NetDef> CreateNet();
+
+const std::string ModelName();
+
+const std::string ModelChecksum();
+
+const std::string ModelBuildTime();
+
+const std::string ModelBuildOptions();
+
+}  // namespace deeplab_v3_plus_mobilenet_v2
 }  // namespace mace
+
+#endif  // MACE_CODEGEN_MODELS_DEEPLAB_V3_PLUS_MOBILENET_V2_DEEPLAB_V3_PLUS_MOBILENET_V2_H_

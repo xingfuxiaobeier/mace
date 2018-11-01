@@ -14,13 +14,21 @@ cmake_minimum_required(VERSION 3.4.1)
 
 include_directories(${CMAKE_SOURCE_DIR}/)
 include_directories(${CMAKE_SOURCE_DIR}/src/main/cpp/include)
+
+#set mace lib\mobile net lib\deeplib net
 set(mace_lib ${CMAKE_SOURCE_DIR}/src/main/cpp/lib/arm64-v8a/libmace.a)
 set(mobilenet_lib ${CMAKE_SOURCE_DIR}/src/main/cpp/model/arm64-v8a/mobilenet.a)
+set(deepnet_lib ${CMAKE_SOURCE_DIR}/src/main/cpp/model/arm64-v8a/deeplab-v3-plus-mobilenet-v2.a)
+
+#add lib
 add_library (mace_lib STATIC IMPORTED)
 set_target_properties(mace_lib PROPERTIES IMPORTED_LOCATION ${mace_lib})
 add_library (mobilenet_lib STATIC IMPORTED)
 set_target_properties(mobilenet_lib PROPERTIES IMPORTED_LOCATION ${mobilenet_lib})
+add_library (deepnet_lib STATIC IMPORTED)
+set_target_properties(deepnet_lib PROPERTIES IMPORTED_LOCATION ${deepnet_lib})
 
+#new lib
 add_library( # Sets the name of the library.
              mace_mobile_jni
 
@@ -28,7 +36,9 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             src/main/cpp/image_classify.cc )
+             src/main/cpp/image_classify.cc
+             src/main/cpp/semantic_segment.cc
+             )
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -51,6 +61,7 @@ target_link_libraries( # Specifies the target library.
                        mace_mobile_jni
                        mace_lib
                        mobilenet_lib
+                       deepnet_lib
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )

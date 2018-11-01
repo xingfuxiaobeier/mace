@@ -116,8 +116,8 @@ class MemoryOptimizer(object):
     def get_total_optimized_mem_size(self):
         optimized_mem_size = 0
         for mem in self.mem_block:
-            print mem, MemoryTypeToStr(self.mem_block[mem].mem_type), \
-                self.mem_block[mem].block
+            print( mem, MemoryTypeToStr(self.mem_block[mem].mem_type), \
+                self.mem_block[mem].block)
             optimized_mem_size += self.mem_size(self.mem_block[mem])
         return optimized_mem_size
 

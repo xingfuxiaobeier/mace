@@ -37,15 +37,15 @@ class FalconCli(object):
                 buf_size=1000):
         try:
             return FalconCli((server, port), debug, buf_size)
-        except socket.error, exc:
-            print "error: connect to %s:%s error: %s" % (server, port, exc)
+        except socket.error as exc:
+            print( "error: connect to %s:%s error: %s" % (server, port, exc))
 
     def call(self, name, *params):
         request = dict(
             id=next(self.id_counter), params=list(params), method=name)
         payload = json.dumps(request).encode()
         if self.debug:
-            print "--> req:", payload
+            print( "--> req:", payload)
         self.socket_.sendall(payload)
 
         response = self.stream.readline()
@@ -53,7 +53,7 @@ class FalconCli(object):
             raise Exception('empty response')
 
         if self.debug:
-            print "<-- resp:", response
+            print( "<-- resp:", response)
 
         response = json.loads(response.decode("utf8"))
         if response.get('error') is not None:

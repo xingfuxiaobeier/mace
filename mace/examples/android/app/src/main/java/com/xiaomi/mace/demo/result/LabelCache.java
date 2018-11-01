@@ -87,4 +87,40 @@ public class LabelCache {
     }
 
 
+    public DeepLibV3ResData getDeepLibResData(float[] floats, int h, int w, int c) {
+        DeepLibV3ResData data = new DeepLibV3ResData();
+        float[] pixelPro = new float[c];
+        int[] pixColor = new int[h * w];
+        List<Float> list = new ArrayList<>();
+        for (int i = 0; i < h * w; i++) {
+//            Log.i("labelCache", "read data from array, current offset : " + i);
+            System.arraycopy(floats, i * c, pixelPro, 0, c);
+
+//            StringBuilder builder = new StringBuilder();
+//            builder.append("[");
+//            for (int k = 0; k < c; k++) {
+//                if (k < c - 1) {
+//                    builder.append(pixelPro[k] + ",");
+//                } else {
+//                    builder.append(pixelPro[k]);
+//                }
+//            }
+//            builder.append("]");
+//            Log.i("labelCache", "get current pixel probability result : " + builder.toString());
+
+            for (int j = 0; j < c; j++) {
+                list.add(pixelPro[j]);
+            }
+            float max = Collections.max(list);
+            int index = list.indexOf(max);
+            Log.i("labelCache", "get current pixel max probability : " + max + ", and its index : " + index);
+            pixColor[i] = index;
+            data.updateData(pixColor);
+            list.clear();
+        }
+
+        return data;
+    }
+
+
 }

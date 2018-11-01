@@ -108,6 +108,7 @@ public class CameraApiMoreM extends CameraEngage {
 
     private void createPreviewSession() {
         try {
+            SurfaceTexture mSurfaceTexture = getmSurfaceTexture();
             mSurfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
 
             Surface surface = new Surface(mSurfaceTexture);
@@ -151,6 +152,7 @@ public class CameraApiMoreM extends CameraEngage {
 
     private void setOutputConfig(int width, int height) {
         try {
+            CameraTextureView mTextureView = (CameraTextureView) getView();
             for (String cameraId : mCameraManager.getCameraIdList()) {
                 CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(cameraId);
 
@@ -166,9 +168,9 @@ public class CameraApiMoreM extends CameraEngage {
 
                 Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
 
-                mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), width, height, mPreviewWidth, mPreviewHeight, largest);
-                mPreviewWidth = mPreviewSize.getWidth();
-                mPreviewHeight = mPreviewSize.getHeight();
+                mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), width, height, getmPreviewWidth(), getmPreviewHeight(), largest);
+                setmPreviewWidth(mPreviewSize.getWidth());
+                setmPreviewHeight(mPreviewSize.getHeight());
                 mTextureView.setRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth());
                 break;
             }
@@ -265,6 +267,16 @@ public class CameraApiMoreM extends CameraEngage {
                 e.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public boolean isFlipHorizontal() {
+        return false;
+    }
+
+    @Override
+    public int getOrientation() {
+        return 0;
     }
 
 }

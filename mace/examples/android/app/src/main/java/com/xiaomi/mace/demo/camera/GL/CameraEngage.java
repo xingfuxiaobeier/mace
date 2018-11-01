@@ -12,22 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.xiaomi.mace.demo.camera;
+package com.xiaomi.mace.demo.camera.GL;
 
 import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
-import android.view.TextureView.SurfaceTextureListener;
 
 import com.xiaomi.mace.demo.AppModel;
-import com.xiaomi.mace.demo.MaceApp;
 import com.xiaomi.mace.demo.ModelType;
+import com.xiaomi.mace.demo.camera.Engage;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
-public abstract class CameraEngage extends Engage implements SurfaceTextureListener {
+public abstract class CameraEngage extends Engage{
+
+    private final String TAG = "CameraEngage";
 
     //model enum
     private int model = 1;
@@ -69,6 +71,7 @@ public abstract class CameraEngage extends Engage implements SurfaceTextureListe
      * mace need data size width and height
      */
     private static int FINAL_SIZE = 224;
+
     /**
      * storage rgb value
      */
@@ -78,51 +81,69 @@ public abstract class CameraEngage extends Engage implements SurfaceTextureListe
      * mace float[] input
      */
     private FloatBuffer floatBuffer;
+    private ByteBuffer byteBuffer;
+
+    /**
+     * Bitmap
+     */
+    private Bitmap bitmap = null;
 
     private final Object lock = new Object();
+    private final Object bufferLock = new Object();
 
     private boolean isCapturePic = false;
 
     private Runnable mHandleCapturePicRunnable = new Runnable() {
         @Override
         public void run() {
-            synchronized (lock) {
-                if (isCapturePic) {
-                    handleCapturePic();
-                }
-            }
-            mBackgroundHandler.postDelayed(mHandleCapturePicRunnable, 200);
+//            synchronized (lock) {
+//                if (isCapturePic) {
+//                    handleCapturePic();
+//                }
+//            }
+            handleCapturePic();
         }
     };
 
     private void handleCapturePic() {
-        CameraTextureView mTextureView = (CameraTextureView) getView();
-        if (mTextureView != null) {
-            Bitmap bitmap = mTextureView.getBitmap(FINAL_SIZE, FINAL_SIZE);
-            if (bitmap != null) {
-                bitmap.getPixels(colorValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-                handleColorRgbs();
-//                EventBus.getDefault().post(new MessageEvent.PicEvent(bitmap));
-                bitmap.recycle();
+
+        synchronized(bufferLock){
+            Log.i(TAG, "handleCapturePic begin ... ");
+
+            try {
+                //savePic
+                byte[] buffer = byteBuffer.array();
+                Log.i(TAG, "handleCapturePic buffer length : " + buffer.length);
+                if (bitmap != null) {
+                    bitmap.copyPixelsFromBuffer(byteBuffer);
+                    Util.pushImageToSdCard("test.jpg", bitmap);
+                }
+
+//        if (bitmap != null) {
+//            bitmap.getPixels(colorValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+//            handleColorRgbs();
+//            bitmap.recycle();
+//        }
+            } catch (Exception e) {
+                Log.i(TAG, "handleCapturePic error !!! ", e);
             }
+            Log.i(TAG, "handleCapturePic end ... ");
         }
+
+
     }
 
 
-    public CameraEngage(CameraTextureView mTextureView) {
-        super(mTextureView, null);
+    public CameraEngage(CameraGLSurfaceView glSurfaceView, SurfaceTexture texture) {
+        super(glSurfaceView, texture);
         colorValues = new int[FINAL_SIZE * FINAL_SIZE];
         float[] floatValues = new float[FINAL_SIZE * FINAL_SIZE * 3];
         floatBuffer = FloatBuffer.wrap(floatValues, 0, FINAL_SIZE * FINAL_SIZE * 3);
-
-        setmPreviewHeight(MaceApp.app.getResources().getDisplayMetrics().heightPixels);
-        setmPreviewWidth(MaceApp.app.getResources().getDisplayMetrics().widthPixels);
-
     }
 
     @Override
     public void openCamera(int width, int height) {
-        Log.i("dhb", "open camera step 4");
+        Log.i("dhb", "test step 4");
         startCapturePic();
     }
 
@@ -154,33 +175,26 @@ public abstract class CameraEngage extends Engage implements SurfaceTextureListe
 
     @Override
     public void onResume() {
-        CameraTextureView mTextureView = (CameraTextureView) getView();
-        if (mTextureView.isAvailable()) {
-            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
-        } else {
-            Log.i("dhb", "open camera step 1");
-            mTextureView.setSurfaceTextureListener(this);
-        }
+        Log.i(TAG, "onResume now");
     }
 
+    //create handle frame thread
     private void startCapturePic() {
         mBackgroundHandlerThread = new HandlerThread("captureBackground");
         mBackgroundHandlerThread.start();
         mBackgroundHandler = new Handler(mBackgroundHandlerThread.getLooper());
-        synchronized (lock) {
-            isCapturePic = true;
-        }
-
-        mBackgroundHandler.post(mHandleCapturePicRunnable);
+//        synchronized (lock) {
+//            isCapturePic = true;
+//        }
     }
 
     private void stopBackgroundThread() {
         try {
-            mBackgroundHandlerThread.quitSafely();
-            mBackgroundHandlerThread.join();
-            mBackgroundHandler = null;
-            mBackgroundHandlerThread = null;
             synchronized (lock) {
+                mBackgroundHandlerThread.quitSafely();
+                mBackgroundHandlerThread.join();
+                mBackgroundHandler = null;
+                mBackgroundHandlerThread = null;
                 isCapturePic = false;
             }
         } catch (Exception e) {
@@ -194,25 +208,18 @@ public abstract class CameraEngage extends Engage implements SurfaceTextureListe
         stopBackgroundThread();
     }
 
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        setmSurfaceTexture(surface);
-        Log.i("dhb", "open camera step 2");
-        openCamera(width, height);
+    public void setByteBuffer(ByteBuffer byteBuffer) {
+        synchronized (bufferLock) {
+            this.byteBuffer = byteBuffer;
+        }
     }
 
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+    public void signalHandleFrame() {
+        if (bitmap == null) {
+            bitmap = Bitmap.createBitmap(getmPreviewWidth(), getmPreviewHeight(), Bitmap.Config.ARGB_8888);
+        }
+        synchronized (lock) {
+            mBackgroundHandler.post(mHandleCapturePicRunnable);
+        }
     }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-        return false;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-    }
-
 }

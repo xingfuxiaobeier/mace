@@ -20,10 +20,19 @@ public class JniMaceUtils {
         System.loadLibrary("mace_mobile_jni");
     }
 
+    //classification
     public static native int maceMobilenetSetAttrs(int ompNumThreads, int cpuAffinityPolicy, int gpuPerfHint, int gpuPriorityHint, String kernelPath);
 
     public static native int maceMobilenetCreateEngine(String model, String device);
 
     public static native float[] maceMobilenetClassify(float[] input);
+
+
+    //semantic segment
+    public static native int maceDeepLibnetSetAttrs(int ompNumThreads, int cpuAffinityPolicy, int gpuPerfHint, int gpuPriorityHint, String kernelPath);
+
+    public static native int maceDeepLibnetCreateEngine(String model, String device);
+
+    public static native float[] maceDeepLibnetSegment(float[] input);
 
 }
