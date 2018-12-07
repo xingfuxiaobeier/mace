@@ -4,6 +4,7 @@ import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.util.Log;
 
+import com.xiaomi.mace.demo.ImageSizeType;
 import com.xiaomi.mace.demo.camera.Engage;
 
 import java.nio.ByteBuffer;
@@ -68,12 +69,26 @@ public class GLDrawer {
     private int mSurfaceWidth;
     private int mSurfaceHeight;
 
+    //resized width and height
+    private int resizedWidth;
+    private int resizedHeight;
+    private ByteBuffer resizedByteBuffer;
+
+    //mask buffer
+    private ByteBuffer maskBuffer = null;
+
     private Engage engage;
     private ByteBuffer byteBuffer;
     private ScaleType mScaleType;
 
-    private int[] mFrameBuffers;
-    private int[] mFrameBufferTextures;
+    private int[] mFrameBuffers = new int[2];
+    private int[] mFrameBufferTextures = new int[2];
+
+    private int[] resizeFbo = new int[1];
+    private int[] resizeFboTid = new int[1];
+
+    //mask texture id
+    private int maskTextureId = 0;
 
     private final static String PROGRAM_ID = "program";
     private final static String POSITION_COORDINATE = "position";
@@ -126,13 +141,15 @@ public class GLDrawer {
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer();
         mGLSaveTextureBuffer.put(GLUtil.getRotation(0, false, true)).position(0);
+
         //rgba
         byteBuffer = ByteBuffer.allocateDirect(width * height * 4);
+        resizedByteBuffer = ByteBuffer.allocateDirect(((CameraEngage)engage).getFinalSize() * ((CameraEngage)engage).getFinalSize() * 4);
 
         initProgram(CAMERA_INPUT_FRAGMENT_SHADER_OES, mArrayPrograms.get(0));
         initProgram(CAMERA_INPUT_FRAGMENT_SHADER, mArrayPrograms.get(1));
 
-        initFrameBuffers(width, height);
+        initFrameBuffers(mFrameBuffers, mFrameBufferTextures, width, height);
 
         mIsInitialized = true;
     }
@@ -182,17 +199,36 @@ public class GLDrawer {
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 //        GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawOrder.length, GLES20.GL_UNSIGNED_SHORT, drawListBuffer);
 
-
+        long start = System.currentTimeMillis();
+        //camera原始预览尺寸的图片
         if (byteBuffer != null) {
             byteBuffer.rewind();
             GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, byteBuffer);
         }
+        long after = System.currentTimeMillis();
+        Log.i(TAG, "glReadPixels cost time : " + (after - start) + " ms");
+
         GLUtil.checkGlError("after read pixels");
 
         if (engage != null) {
             ((CameraEngage)engage).setByteBuffer(byteBuffer);
-            ((CameraEngage)engage).signalHandleFrame();
+            ((CameraEngage)engage).signalHandleFrame(ImageSizeType.ORIGIN_SIZE.getValue());
         }
+
+//        //resize
+//        if (resizedByteBuffer != null) {
+//            resizedByteBuffer.rewind();
+//            GLES20.glReadPixels(0, 0, ((CameraEngage)engage).getFinalSize(), ((CameraEngage)engage).getFinalSize(), GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, resizedByteBuffer);
+//        }
+//        long after = System.currentTimeMillis();
+//        Log.i(TAG, "glReadPixels cost time : " + (after - start) + " ms");
+//        GLUtil.checkGlError("after read pixels");
+//
+//        if (engage != null) {
+//            ((CameraEngage)engage).setByteBuffer(resizedByteBuffer);
+//            ((CameraEngage)engage).signalHandleFrame(ImageSizeType.RESIZE_1.getValue());
+//        }
+
         GLES20.glDisableVertexAttribArray(glAttribPosition);
         GLES20.glDisableVertexAttribArray(glAttribTextureCoordinate);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
@@ -200,6 +236,108 @@ public class GLDrawer {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
         return mFrameBufferTextures[0];
+    }
+
+    public void resizeFrame(int textureId, int dstWidth, int dstHeight)
+    {
+        if (!mIsInitialized) {
+            return;
+        }
+
+        if (resizedWidth != dstWidth || resizedHeight != dstHeight) {
+            resizedByteBuffer = ByteBuffer.allocateDirect(dstWidth * dstHeight * 4);
+            initFrameBuffers(resizeFbo, resizeFboTid, dstWidth, dstHeight);
+            adjustViewPort(dstWidth, dstHeight);
+        }
+
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        GLES20.glViewport(0, 0, dstWidth, dstHeight);
+
+//        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, resizeFbo[0]);
+//        GLUtil.checkGlError("glBindFramebuffer");
+
+        GLES20.glUseProgram(mArrayPrograms.get(1).get(PROGRAM_ID));
+        vertexBuffer.position(0);
+        int glAttribPosition = mArrayPrograms.get(1).get(POSITION_COORDINATE);
+        GLES20.glVertexAttribPointer(glAttribPosition, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer);
+        GLES20.glEnableVertexAttribArray(glAttribPosition);
+
+        textureVerticesBuffer.position(0);
+        int glAttribTextureCoordinate = mArrayPrograms.get(1).get(TEXTURE_COORDINATE);
+        GLES20.glVertexAttribPointer(glAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0,
+                textureVerticesBuffer);
+        GLES20.glEnableVertexAttribArray(glAttribTextureCoordinate);
+
+        //real draw
+        if (textureId != -1) {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId);
+            GLES20.glUniform1i(mArrayPrograms.get(1).get(TEXTURE_UNIFORM), 0);
+        }
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        //resize尺寸的图片
+        if (resizedByteBuffer != null) {
+            resizedByteBuffer.rewind();
+            GLES20.glReadPixels(0, 0, resizedWidth, resizedHeight, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, resizedByteBuffer);
+        }
+        GLUtil.checkGlError("after read pixels");
+
+        if (engage != null) {
+            ((CameraEngage)engage).setByteBuffer(resizedByteBuffer);
+            ((CameraEngage)engage).signalHandleFrame(ImageSizeType.RESIZE_1.getValue());
+        }
+
+        // release
+        GLES20.glDisableVertexAttribArray(glAttribPosition);
+        GLES20.glDisableVertexAttribArray(glAttribTextureCoordinate);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+
+    }
+
+    public void drawMask(byte[] image) {
+        if (!mIsInitialized) {
+            return;
+        }
+
+        if (maskBuffer == null) {
+            maskBuffer = ByteBuffer.allocateDirect(((CameraEngage)engage).getFinalSize() * ((CameraEngage)engage).getFinalSize());
+        }
+        maskBuffer.rewind();
+        maskBuffer.put(image);
+
+        maskTextureId = GLUtil.loadTexture2(maskTextureId, ((CameraEngage)engage).getFinalSize(), ((CameraEngage)engage).getFinalSize(), maskBuffer);
+
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        GLES20.glViewport(0, 0, mSurfaceWidth, mSurfaceHeight);
+
+        GLES20.glUseProgram(mArrayPrograms.get(1).get(PROGRAM_ID));
+        vertexBuffer.position(0);
+        int glAttribPosition = mArrayPrograms.get(1).get(POSITION_COORDINATE);
+        GLES20.glVertexAttribPointer(glAttribPosition, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer);
+        GLES20.glEnableVertexAttribArray(glAttribPosition);
+
+        textureVerticesBuffer.position(0);
+        int glAttribTextureCoordinate = mArrayPrograms.get(1).get(TEXTURE_COORDINATE);
+        GLES20.glVertexAttribPointer(glAttribTextureCoordinate, 2, GLES20.GL_FLOAT, false, 0,
+                textureVerticesBuffer);
+        GLES20.glEnableVertexAttribArray(glAttribTextureCoordinate);
+
+        //real draw
+        if (maskTextureId != -1) {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, maskTextureId);
+            GLES20.glUniform1i(mArrayPrograms.get(1).get(TEXTURE_UNIFORM), 0);
+        }
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        // release
+        GLES20.glDisableVertexAttribArray(glAttribPosition);
+        GLES20.glDisableVertexAttribArray(glAttribTextureCoordinate);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
     }
 
     public void draw(int textureId)
@@ -287,36 +425,32 @@ public class GLDrawer {
         return mFrameBufferTextures[1];
     }
 
-    public void initFrameBuffers(int width, int height) {
-        destroyFrameBuffers();
+    public void initFrameBuffers(int[] frameBuffers, int[] frameBufferTextures, int width, int height) {
+        destroyFrameBuffers(frameBuffers, frameBufferTextures);
 
-        if (mFrameBuffers == null) {
-            mFrameBuffers = new int[2];
-            mFrameBufferTextures = new int[2];
+        GLES20.glGenFramebuffers(frameBuffers.length, frameBuffers, 0);
+        GLES20.glGenTextures(frameBufferTextures.length, frameBufferTextures, 0);
 
-            GLES20.glGenFramebuffers(2, mFrameBuffers, 0);
-            GLES20.glGenTextures(2, mFrameBufferTextures, 0);
-
-            GLUtil.bindFrameBuffer(mFrameBufferTextures[0], mFrameBuffers[0], width, height);
-            GLUtil.bindFrameBuffer(mFrameBufferTextures[1], mFrameBuffers[1], width, height);
+        for (int i = 0; i < frameBuffers.length; i++) {
+            GLUtil.bindFrameBuffer(frameBufferTextures[i], frameBuffers[i], width, height);
         }
     }
 
     public final void destroy() {
         mIsInitialized = false;
-        destroyFrameBuffers();
+        destroyFrameBuffers(mFrameBuffers, mFrameBufferTextures);
         GLES20.glDeleteProgram(mArrayPrograms.get(0).get(PROGRAM_ID));
         GLES20.glDeleteProgram(mArrayPrograms.get(1).get(PROGRAM_ID));
     }
 
-    public void destroyFrameBuffers() {
-        if (mFrameBufferTextures != null) {
-            GLES20.glDeleteTextures(2, mFrameBufferTextures, 0);
-            mFrameBufferTextures = null;
+    public void destroyFrameBuffers(int[] fbos, int[] fboTextures) {
+        if (fboTextures != null) {
+            GLES20.glDeleteTextures(fbos.length, fboTextures, 0);
+            fboTextures = null;
         }
-        if (mFrameBuffers != null) {
-            GLES20.glDeleteFramebuffers(2, mFrameBuffers, 0);
-            mFrameBuffers = null;
+        if (fbos != null) {
+            GLES20.glDeleteFramebuffers(fbos.length, fbos, 0);
+            fbos = null;
         }
     }
 
@@ -371,8 +505,9 @@ public class GLDrawer {
     }
 
     private void adjustTextureBuffer(int orientation, boolean flipVertical, int displayW, int displayH, int imageW, int imageH) {
-        float[] textureCords = GLUtil.getRotation(orientation, true, flipVertical);
 
+        //fbo params
+        float[] textureCords = GLUtil.getRotation(orientation, true, flipVertical);
         Log.i(TAG, "adjustTextureBuffer orientation : " + orientation + ", flipVertical : " + flipVertical);
         //填充图片转换buffer
         if (mTextureBuffer == null) {
@@ -383,7 +518,7 @@ public class GLDrawer {
         mTextureBuffer.clear();
         mTextureBuffer.put(textureCords).position(0);
 
-
+        //preview params
         float[] texture = null;
         float[] textureNoRotation = GLUtil.TEXTURE_NO_ROTATION;
         if (mScaleType == ScaleType.CENTER_INSIDE || mScaleType == ScaleType.CENTER_STRETCH) {

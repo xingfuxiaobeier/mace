@@ -15,12 +15,14 @@
 package com.xiaomi.mace.demo.camera.GL;
 
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
 import com.xiaomi.mace.demo.AppModel;
+import com.xiaomi.mace.demo.ImageSizeType;
 import com.xiaomi.mace.demo.ModelType;
 import com.xiaomi.mace.demo.camera.Engage;
 
@@ -109,25 +111,31 @@ public abstract class CameraEngage extends Engage{
 
         synchronized(bufferLock){
             Log.i(TAG, "handleCapturePic begin ... ");
-
+            long begin = System.currentTimeMillis();
             try {
                 //savePic
-                byte[] buffer = byteBuffer.array();
-                Log.i(TAG, "handleCapturePic buffer length : " + buffer.length);
                 if (bitmap != null) {
                     bitmap.copyPixelsFromBuffer(byteBuffer);
-                    Util.pushImageToSdCard("test.jpg", bitmap);
+//                    Util.pushImageToSdCard("test.jpg", bitmap);
                 }
 
-//        if (bitmap != null) {
-//            bitmap.getPixels(colorValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
-//            handleColorRgbs();
-//            bitmap.recycle();
-//        }
+                if (bitmap != null) {
+                    float scaleWidth = ((float) FINAL_SIZE) / getmPreviewWidth();
+                    float scaleHeight = ((float) FINAL_SIZE) / getmPreviewHeight();
+                    Matrix matrix = new Matrix();
+                    matrix.postScale(scaleWidth, scaleHeight);
+                    Bitmap newMap = Bitmap.createBitmap(bitmap, 0, 0, getmPreviewWidth(), getmPreviewHeight(), matrix, true);
+//                    Util.pushImageToSdCard("test1.jpg", newMap);
+                    newMap.getPixels(colorValues, 0, newMap.getWidth(), 0, 0, newMap.getWidth(), newMap.getHeight());
+                    handleColorRgbs();
+                    newMap.recycle();
+                }
             } catch (Exception e) {
                 Log.i(TAG, "handleCapturePic error !!! ", e);
             }
-            Log.i(TAG, "handleCapturePic end ... ");
+            long end = System.currentTimeMillis();
+
+            Log.i(TAG, "handleCapturePic end, cost time : " + (end - begin) + " ms");
         }
 
 
@@ -214,12 +222,22 @@ public abstract class CameraEngage extends Engage{
         }
     }
 
-    public void signalHandleFrame() {
-        if (bitmap == null) {
-            bitmap = Bitmap.createBitmap(getmPreviewWidth(), getmPreviewHeight(), Bitmap.Config.ARGB_8888);
-        }
+    private int lastPicType = -1;
+    public void signalHandleFrame(int picType) {
         synchronized (lock) {
+            if (bitmap == null || picType != lastPicType) {
+                lastPicType = picType;
+                if (picType == ImageSizeType.RESIZE_1.getValue()) {
+                    bitmap = Bitmap.createBitmap(FINAL_SIZE, FINAL_SIZE, Bitmap.Config.ARGB_8888);
+                } else if (picType == ImageSizeType.ORIGIN_SIZE.getValue()) {
+                    bitmap = Bitmap.createBitmap(getmPreviewWidth(), getmPreviewHeight(), Bitmap.Config.ARGB_8888);
+                }
+            }
             mBackgroundHandler.post(mHandleCapturePicRunnable);
         }
+    }
+
+    public static int getFinalSize() {
+        return FINAL_SIZE;
     }
 }

@@ -13,6 +13,9 @@ import com.xiaomi.mace.demo.CameraFactory;
 import com.xiaomi.mace.demo.ViewModeEnum;
 import com.xiaomi.mace.demo.camera.Engage;
 
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -38,6 +41,9 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
     private int mHeight = -1;
 
     private int tag = -1;
+
+    //OpenGL task queue
+    Queue<byte[]> glTaskQueue = new LinkedBlockingDeque<>();
 
 
     public CameraGLSurfaceView(Context context) {
@@ -93,7 +99,9 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
 
             //可以使用目标分辨率打开摄像头，但实际上摄像头预览的分辨率为摄像头
             // 本身支持的分辨率对指定分辨率的适配，在这里使用view的宽高打开
-            engage.openCamera(width, height);
+//            engage.openCamera(width, height);
+            engage.openCamera(480, 640);
+
             //create drawer
             drawer = new GLDrawer(engage, width, height);
             Log.i(TAG, "onSurfaceChanged camera preview width : " + engage.getmPreviewWidth() + ", height : " + engage.getmPreviewHeight());
@@ -107,6 +115,15 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
     @Override
     public void onDrawFrame(GL10 gl10) {
 
+        //pre draw mask from queue
+        for (;;) {
+            if (glTaskQueue.isEmpty()) {
+                break;
+            }
+            byte[] cur = glTaskQueue.poll();
+            drawer.drawMask(cur);
+        }
+
         surfaceTexture.updateTexImage();
 
 //        surfaceTexture
@@ -114,6 +131,7 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
 //        surfaceTexture.getTransformMatrix(mtx);
         if (drawer != null) {
             int preTextureId = drawer.preProcess(texture_id);
+//            drawer.resizeFrame(preTextureId, ((CameraEngage)engage).getFinalSize(), ((CameraEngage)engage).getFinalSize());
             drawer.draw(preTextureId);
         }
 
@@ -125,6 +143,14 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
             requestRender();
         }
 //        tag++;
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (drawer != null) {
+            drawer.destroy();
+        }
     }
 
     public SurfaceTexture getSurfaceTexture() {

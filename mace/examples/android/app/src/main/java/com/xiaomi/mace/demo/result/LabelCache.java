@@ -113,7 +113,7 @@ public class LabelCache {
             }
             float max = Collections.max(list);
             int index = list.indexOf(max);
-            Log.i("labelCache", "get current pixel max probability : " + max + ", and its index : " + index);
+//            Log.i("labelCache", "get current pixel max probability : " + max + ", and its index : " + index);
             pixColor[i] = index;
             data.updateData(pixColor);
             list.clear();

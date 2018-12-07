@@ -168,6 +168,7 @@ public class CameraApiNew extends CameraEngage implements Camera.AutoFocusCallba
         Camera.Parameters parameters = mCamera.getParameters();
         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
         Camera.Size size = getOptimalSize(parameters.getSupportedPreviewSizes(), width, height);
+        Log.i("Camera api", "setOutputConfig sie : " + size.width + ", " + size.height);
         setmPreviewWidth(size.height);
         setmPreviewHeight(size.width);
         parameters.setPreviewSize(size.width, size.height);
